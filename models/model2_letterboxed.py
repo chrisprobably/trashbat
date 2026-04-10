@@ -16,8 +16,6 @@ LEARNING_RATE = 0.01
 MAX_ITERATIONS = 10000
 PATIENCE = 500
 MIN_DELTA = 1e-6
-MODEL_NAME = Path(__file__).stem
-WEIGHTS_PATH = Path("weights") / (MODEL_NAME + ".pt")
 
 _transform = transforms.Compose(
     [
@@ -33,24 +31,16 @@ _transform = transforms.Compose(
 )
 
 
-def _preprocess(img: Image.Image) -> torch.Tensor:
-    return cast(torch.Tensor, _transform(img)).view(-1)
-
-
 class Model(TrashModel):
-    def __init__(self):
-        self._weights: torch.Tensor | None = None
-        self._bias: torch.Tensor | None = None
-        if WEIGHTS_PATH.exists():
-            self._load()
+    @property
+    def weights_path(self) -> Path:
+        return Path("weights") / (Path(__file__).stem + ".pt")
 
-    def _load(self):
-        state = torch.load(WEIGHTS_PATH, weights_only=True)
-        self._weights = state["weights"]
-        self._bias = state["bias"]
+    def preprocess(self, img: Image.Image) -> torch.Tensor:
+        return cast(torch.Tensor, _transform(img)).view(-1)
 
     def train(self) -> None:
-        X, Y = load_trashnet(_preprocess)
+        X, Y = load_trashnet(self.preprocess)
 
         # One-hot encode targets for MSE loss
         targets = torch.zeros(len(Y), len(CLASSES))
@@ -106,25 +96,4 @@ class Model(TrashModel):
                 print(f"Final Epoch: {epoch} | Best Loss: {best_loss:.6f}")
                 break
 
-        WEIGHTS_PATH.parent.mkdir(exist_ok=True)
-        torch.save({"weights": weights.detach(), "bias": bias.detach()}, WEIGHTS_PATH)
-        print(f"{MODEL_NAME}: weights saved to {WEIGHTS_PATH}")
-        self._load()
-
-    def predict(self, img: Image.Image) -> dict:
-        if self._weights is None or self._bias is None:
-            raise RuntimeError(
-                f"{MODEL_NAME} has not been trained. Run: python train.py {MODEL_NAME}"
-            )
-        x = _preprocess(img).unsqueeze(0)
-        with torch.no_grad():
-            probs = torch.softmax(
-                torch.mm(x, self._weights) + self._bias, dim=1
-            ).squeeze()
-        idx = int(torch.argmax(probs).item())
-        return {
-            "prediction": CLASSES[idx],
-            "probabilities": {
-                cls: round(probs[i].item(), 4) for i, cls in enumerate(CLASSES)
-            },
-        }
+        self._save(weights.detach(), bias.detach())
