@@ -1,6 +1,5 @@
 """
-Logistic Regression with Cross-Entropy Loss
-Single linear layer (W, b), trained with manual full-batch gradient descent.
+Logistic Regression with MSE Loss, letterboxd images and a large (0.1) learning rate
 """
 
 import torch
@@ -13,16 +12,21 @@ from dataset import CLASSES, load_trashnet
 from model_base import TrashModel
 
 IMG_SIZE = 64
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.1
 MAX_ITERATIONS = 10000
-PATIENCE = 500
+PATIENCE = 1000
 MIN_DELTA = 1e-6
 MODEL_NAME = Path(__file__).stem
 WEIGHTS_PATH = Path("weights") / (MODEL_NAME + ".pt")
 
 _transform = transforms.Compose(
     [
-        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        # 1. Resize the long side to 64 while maintaining aspect ratio
+        # This turns 512x384 into 64x48
+        transforms.Resize(IMG_SIZE),
+        # 2. Pad the shorter side (48) with black pixels to reach 64x64
+        # 'CenterCrop' on a smaller image with 'pad_if_needed' does exactly this!
+        transforms.CenterCrop(IMG_SIZE),
         transforms.Grayscale(),
         transforms.ToTensor(),
     ]
@@ -48,11 +52,14 @@ class Model(TrashModel):
     def train(self) -> None:
         X, Y = load_trashnet(_preprocess)
 
+        # One-hot encode targets for MSE loss
+        targets = torch.zeros(len(Y), len(CLASSES))
+        targets.scatter_(1, Y.unsqueeze(1), 1.0)
+
         weights = torch.randn((X.shape[1], len(CLASSES))) * 0.01
         weights.requires_grad_(True)
         bias = torch.zeros(len(CLASSES), requires_grad=True)
 
-        criterion = torch.nn.CrossEntropyLoss()
         best_loss = float("inf")
         epochs_without_improvement = 0
 
@@ -60,7 +67,8 @@ class Model(TrashModel):
 
         for epoch in range(MAX_ITERATIONS):
             logits = torch.mm(X, weights) + bias
-            loss = criterion(logits, Y)
+            probs = torch.softmax(logits, dim=1)
+            loss = ((probs - targets) ** 2).mean()
             loss.backward()
 
             with torch.no_grad():

@@ -14,13 +14,20 @@ from dataset import CLASSES, load_trashnet
 from model_base import TrashModel
 
 IMG_SIZE = 64
-WEIGHTS_PATH = Path('weights/model2.pt')
+LEARNING_RATE = 0.01
+MAX_ITERATIONS = 10000
+PATIENCE = 500
+MIN_DELTA = 1e-6
+MODEL_NAME = Path(__file__).stem
+WEIGHTS_PATH = Path("weights") / (MODEL_NAME + ".pt")
 
-_transform = transforms.Compose([
-    transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.Grayscale(),
-    transforms.ToTensor(),
-])
+_transform = transforms.Compose(
+    [
+        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        transforms.Grayscale(),
+        transforms.ToTensor(),
+    ]
+)
 
 
 def _preprocess(img: Image.Image) -> torch.Tensor:
@@ -28,7 +35,6 @@ def _preprocess(img: Image.Image) -> torch.Tensor:
 
 
 class Model(TrashModel):
-
     def __init__(self):
         self._weights: torch.Tensor | None = None
         self._bias: torch.Tensor | None = None
@@ -37,8 +43,8 @@ class Model(TrashModel):
 
     def _load(self):
         state = torch.load(WEIGHTS_PATH, weights_only=True)
-        self._weights = state['weights']
-        self._bias = state['bias']
+        self._weights = state["weights"]
+        self._bias = state["bias"]
 
     def train(self) -> None:
         X, Y = load_trashnet(_preprocess)
@@ -51,10 +57,12 @@ class Model(TrashModel):
         weights.requires_grad_(True)
         bias = torch.zeros(len(CLASSES), requires_grad=True)
 
-        lr = 0.01
+        best_loss = float("inf")
+        epochs_without_improvement = 0
 
-        print("Model 2: training (500 epochs, MSE loss)...")
-        for epoch in range(500):
+        print(f"Starting deep training (Max: {MAX_ITERATIONS})...")
+
+        for epoch in range(MAX_ITERATIONS):
             logits = torch.mm(X, weights) + bias
             probs = torch.softmax(logits, dim=1)
             loss = ((probs - targets) ** 2).mean()
@@ -65,29 +73,55 @@ class Model(TrashModel):
                     raise RuntimeError("Gradients missing after backward()")
                 w_grad = weights.grad
                 b_grad = bias.grad
-                weights -= w_grad * lr
-                bias -= b_grad * lr
+                weights -= w_grad * LEARNING_RATE
+                bias -= b_grad * LEARNING_RATE
                 w_grad.zero_()
                 b_grad.zero_()
 
-            if epoch % 100 == 0:
+            # --- EARLY STOPPING LOGIC ---
+            current_loss = loss.item()
+
+            # Only consider it an improvement if it drops by more than MIN_DELTA
+            if current_loss < (best_loss - MIN_DELTA):
+                best_loss = current_loss
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
+            # Log every 500 epochs to keep the console clean
+            if epoch % 500 == 0:
                 with torch.no_grad():
                     acc = (torch.argmax(logits, dim=1) == Y).float().mean()
-                print(f"  Epoch {epoch:3d} | Loss: {loss.item():.4f} | Acc: {acc.item()*100:.1f}%")
+                print(
+                    f"  Epoch {epoch:5d} | Loss: {current_loss:.6f} | Acc: {acc.item() * 100:.1f}%"
+                )
+
+            if epochs_without_improvement >= PATIENCE:
+                print(
+                    f"\n[Terminated] No significant improvement after {PATIENCE} epochs."
+                )
+                print(f"Final Epoch: {epoch} | Best Loss: {best_loss:.6f}")
+                break
 
         WEIGHTS_PATH.parent.mkdir(exist_ok=True)
-        torch.save({'weights': weights.detach(), 'bias': bias.detach()}, WEIGHTS_PATH)
-        print(f"Model 2: weights saved to {WEIGHTS_PATH}")
+        torch.save({"weights": weights.detach(), "bias": bias.detach()}, WEIGHTS_PATH)
+        print(f"{MODEL_NAME}: weights saved to {WEIGHTS_PATH}")
         self._load()
 
     def predict(self, img: Image.Image) -> dict:
         if self._weights is None or self._bias is None:
-            raise RuntimeError("Model 2 has not been trained. Run: python train.py model2")
+            raise RuntimeError(
+                f"{MODEL_NAME} has not been trained. Run: python train.py {MODEL_NAME}"
+            )
         x = _preprocess(img).unsqueeze(0)
         with torch.no_grad():
-            probs = torch.softmax(torch.mm(x, self._weights) + self._bias, dim=1).squeeze()
+            probs = torch.softmax(
+                torch.mm(x, self._weights) + self._bias, dim=1
+            ).squeeze()
         idx = int(torch.argmax(probs).item())
         return {
-            'prediction': CLASSES[idx],
-            'probabilities': {cls: round(probs[i].item(), 4) for i, cls in enumerate(CLASSES)},
+            "prediction": CLASSES[idx],
+            "probabilities": {
+                cls: round(probs[i].item(), 4) for i, cls in enumerate(CLASSES)
+            },
         }
