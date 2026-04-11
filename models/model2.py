@@ -5,27 +5,18 @@ but uses mean squared error on one-hot targets instead of cross-entropy.
 """
 
 import torch
-import torchvision.transforms as transforms
 from pathlib import Path
 from typing import cast
 from PIL import Image
 
 from dataset import CLASSES, load_trashnet
 from model_base import TrashModel
+from transforms import stretch_transform
 
-IMG_SIZE = 64
 LEARNING_RATE = 0.01
 MAX_ITERATIONS = 10000
 PATIENCE = 500
 MIN_DELTA = 1e-6
-
-_transform = transforms.Compose(
-    [
-        transforms.Resize((IMG_SIZE, IMG_SIZE)),
-        transforms.Grayscale(),
-        transforms.ToTensor(),
-    ]
-)
 
 
 class Model(TrashModel):
@@ -34,7 +25,7 @@ class Model(TrashModel):
         return Path("weights") / (Path(__file__).stem + ".pt")
 
     def preprocess(self, img: Image.Image) -> torch.Tensor:
-        return cast(torch.Tensor, _transform(img)).view(-1)
+        return cast(torch.Tensor, stretch_transform(img)).view(-1)
 
     def train(self) -> None:
         X, Y = load_trashnet(self.preprocess)

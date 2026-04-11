@@ -1,5 +1,5 @@
 """
-Logistic Regression with MSE Loss
+Logistic Regression with MSE Loss with letterboxed images.
 but uses a 70/15/15 training/validation/test split
 """
 
@@ -10,7 +10,7 @@ from PIL import Image
 
 from dataset import CLASSES, load_stratified_data
 from model_base import TrashModel
-from transforms import stretch_transform
+from transforms import stretch_transform_small
 
 LEARNING_RATE = 0.01
 MAX_ITERATIONS = 10000
@@ -24,7 +24,7 @@ class Model(TrashModel):
         return Path("weights") / (Path(__file__).stem + ".pt")
 
     def preprocess(self, img: Image.Image) -> torch.Tensor:
-        return cast(torch.Tensor, stretch_transform(img)).view(-1)
+        return cast(torch.Tensor, stretch_transform_small(img)).view(-1)
 
     def train(self) -> None:
         (X_training, Y_training), (X_validation, Y_validation), (X_test, Y_test) = (
