@@ -11,6 +11,9 @@ from PIL import Image
 from dataset import CLASSES, load_stratified_data
 from model_base import TrashModel
 from transforms import resize_small_colour
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 LEARNING_RATE = 0.01
 MAX_ITERATIONS = 20000
@@ -33,7 +36,6 @@ class Model(TrashModel):
         self._bias = state["bias2"]
         self._weights1 = state["weights1"]
         self._bias1 = state["bias1"]
-
 
     def predict(self, img: Image.Image) -> dict:
         if self._weights is None or self._bias is None:
@@ -79,7 +81,9 @@ class Model(TrashModel):
         best_validation_loss = float("inf")
         epochs_without_improvement = 0
 
-        print(f"Starting deep training (Max: {MAX_ITERATIONS}, Hidden: {HIDDEN_SIZE})...")
+        print(
+            f"Starting deep training (Max: {MAX_ITERATIONS}, Hidden: {HIDDEN_SIZE})..."
+        )
 
         for epoch in range(MAX_ITERATIONS):
             hidden = torch.relu(torch.mm(X_training, weights1) + bias1)
@@ -89,7 +93,12 @@ class Model(TrashModel):
             loss.backward()
 
             with torch.no_grad():
-                if weights1.grad is None or bias1.grad is None or weights2.grad is None or bias2.grad is None:
+                if (
+                    weights1.grad is None
+                    or bias1.grad is None
+                    or weights2.grad is None
+                    or bias2.grad is None
+                ):
                     raise RuntimeError("Gradients missing after backward()")
                 w1_grad = weights1.grad
                 b1_grad = bias1.grad
@@ -151,6 +160,31 @@ class Model(TrashModel):
             test_logits = torch.mm(test_hidden, weights2) + bias2
             test_acc = (torch.argmax(test_logits, dim=1) == Y_test).float().mean()
         print(f"Test Acc: {test_acc.item() * 100:.1f}%")
+
+        # --- GENERATE CONFUSION MATRIX ---
+        with torch.no_grad():
+            h1 = torch.relu(torch.mm(X_validation, weights1) + bias1)
+            logits = torch.mm(h1, weights2) + bias2
+            predictions = torch.argmax(logits, dim=1)
+
+        y_true = Y_validation.numpy()
+        y_pred = predictions.numpy()
+
+        cm = confusion_matrix(y_true, y_pred)
+
+        plt.figure(figsize=(10, 7))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=CLASSES,
+            yticklabels=CLASSES,
+        )
+        plt.xlabel("Predicted Label")
+        plt.ylabel("True Label")
+        plt.title("Waste Classification Confusion Matrix")
+        plt.show()
 
         self.weights_path.parent.mkdir(exist_ok=True)
         torch.save(
