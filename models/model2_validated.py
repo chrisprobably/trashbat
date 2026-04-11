@@ -1,7 +1,6 @@
 """
-Model 2: Logistic Regression with MSE Loss
-Identical architecture to Model 1 (single linear layer, manual gradient descent),
-but uses mean squared error on one-hot targets instead of cross-entropy.
+Logistic Regression with MSE Loss
+but uses a 70/15/15 training/validation/test split
 """
 
 import torch
