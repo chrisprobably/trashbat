@@ -1,0 +1,119 @@
+"""
+Model 2: Logistic Regression with MSE Loss
+Identical architecture to Model 1 (single linear layer, manual gradient descent),
+but uses mean squared error on one-hot targets instead of cross-entropy.
+"""
+
+import torch
+import torchvision.transforms as transforms
+from pathlib import Path
+from typing import cast
+from PIL import Image
+
+from dataset import CLASSES, load_stratified_data
+from model_base import TrashModel
+
+IMG_SIZE = 64
+LEARNING_RATE = 0.01
+MAX_ITERATIONS = 10000
+PATIENCE = 500
+MIN_DELTA = 1e-6
+
+_transform = transforms.Compose(
+    [
+        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        transforms.Grayscale(),
+        transforms.ToTensor(),
+    ]
+)
+
+
+class Model(TrashModel):
+    @property
+    def weights_path(self) -> Path:
+        return Path("weights") / (Path(__file__).stem + ".pt")
+
+    def preprocess(self, img: Image.Image) -> torch.Tensor:
+        return cast(torch.Tensor, _transform(img)).view(-1)
+
+    def train(self) -> None:
+        (X_training, Y_training), (X_validation, Y_validation), (X_test, Y_test) = (
+            load_stratified_data(self.preprocess)
+        )
+
+        # One-hot encode targets for MSE loss
+        targets_training = torch.zeros(len(Y_training), len(CLASSES))
+        targets_training.scatter_(1, Y_training.unsqueeze(1), 1.0)
+
+        weights = torch.randn((X_training.shape[1], len(CLASSES))) * 0.01
+        weights.requires_grad_(True)
+        bias = torch.zeros(len(CLASSES), requires_grad=True)
+
+        best_validation_loss = float("inf")
+        epochs_without_improvement = 0
+
+        print(f"Starting deep training (Max: {MAX_ITERATIONS})...")
+
+        for epoch in range(MAX_ITERATIONS):
+            logits = torch.mm(X_training, weights) + bias
+            probs = torch.softmax(logits, dim=1)
+            loss = ((probs - targets_training) ** 2).mean()
+            loss.backward()
+
+            with torch.no_grad():
+                if weights.grad is None or bias.grad is None:
+                    raise RuntimeError("Gradients missing after backward()")
+                w_grad = weights.grad
+                b_grad = bias.grad
+                weights -= w_grad * LEARNING_RATE
+                bias -= b_grad * LEARNING_RATE
+                w_grad.zero_()
+                b_grad.zero_()
+
+            # --- EARLY STOPPING LOGIC (validation loss) ---
+            with torch.no_grad():
+                validation_logits = torch.mm(X_validation, weights) + bias
+                validation_probs = torch.softmax(validation_logits, dim=1)
+                targets_validation = torch.zeros(len(Y_validation), len(CLASSES))
+                targets_validation.scatter_(1, Y_validation.unsqueeze(1), 1.0)
+                validation_loss = (
+                    ((validation_probs - targets_validation) ** 2).mean().item()
+                )
+
+            # Only consider it an improvement if it drops by more than MIN_DELTA
+            if validation_loss < (best_validation_loss - MIN_DELTA):
+                best_validation_loss = validation_loss
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
+            # Log every 500 epochs to keep the console clean
+            if epoch % 500 == 0:
+                with torch.no_grad():
+                    training_acc = (
+                        (torch.argmax(logits, dim=1) == Y_training).float().mean()
+                    )
+                    validation_acc = (
+                        (torch.argmax(validation_logits, dim=1) == Y_validation)
+                        .float()
+                        .mean()
+                    )
+                print(
+                    f"  Epoch {epoch:5d} | Training Loss: {loss.item():.6f} | Validation Loss: {validation_loss:.6f} | Training Acc: {training_acc.item() * 100:.1f}% | Validation Acc: {validation_acc.item() * 100:.1f}%"
+                )
+
+            if epochs_without_improvement >= PATIENCE:
+                print(
+                    f"\n[Terminated] No significant improvement after {PATIENCE} epochs."
+                )
+                print(
+                    f"Final Epoch: {epoch} | Best Validation Loss: {best_validation_loss:.6f}"
+                )
+                break
+
+        with torch.no_grad():
+            test_logits = torch.mm(X_test, weights) + bias
+            test_acc = (torch.argmax(test_logits, dim=1) == Y_test).float().mean()
+        print(f"Test Acc: {test_acc.item() * 100:.1f}%")
+
+        self._save(weights.detach(), bias.detach())
