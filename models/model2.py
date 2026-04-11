@@ -11,7 +11,7 @@ from PIL import Image
 
 from dataset import CLASSES, load_trashnet
 from model_base import TrashModel
-from transforms import stretch_transform
+from transforms import resize_med
 
 LEARNING_RATE = 0.01
 MAX_ITERATIONS = 10000
@@ -25,7 +25,7 @@ class Model(TrashModel):
         return Path("weights") / (Path(__file__).stem + ".pt")
 
     def preprocess(self, img: Image.Image) -> torch.Tensor:
-        return cast(torch.Tensor, stretch_transform(img)).view(-1)
+        return cast(torch.Tensor, resize_med(img)).view(-1)
 
     def train(self) -> None:
         X, Y = load_trashnet(self.preprocess)
