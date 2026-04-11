@@ -12,19 +12,20 @@ from dataset import CLASSES, load_stratified_data
 from model_base import TrashModel
 from transforms import resize_small_colour
 
-LEARNING_RATE = 0.01
-MAX_ITERATIONS = 10000
-PATIENCE = 500
-MIN_DELTA = 1e-6
-
 
 class Model(TrashModel):
+    LEARNING_RATE = 0.01
+    MAX_ITERATIONS = 10000
+    PATIENCE = 500
+    MIN_DELTA = 1e-6
+    transform = resize_small_colour
+
     @property
     def weights_path(self) -> Path:
         return Path("weights") / (Path(__file__).stem + ".pt")
 
     def preprocess(self, img: Image.Image) -> torch.Tensor:
-        return cast(torch.Tensor, resize_small_colour(img)).view(-1)
+        return cast(torch.Tensor, self.transform(img)).view(-1)
 
     def train(self) -> None:
         (X_training, Y_training), (X_validation, Y_validation), (X_test, Y_test) = (
@@ -42,9 +43,9 @@ class Model(TrashModel):
         best_validation_loss = float("inf")
         epochs_without_improvement = 0
 
-        print(f"Starting deep training (Max: {MAX_ITERATIONS})...")
+        print(f"Starting deep training (Max: {self.MAX_ITERATIONS})...")
 
-        for epoch in range(MAX_ITERATIONS):
+        for epoch in range(self.MAX_ITERATIONS):
             logits = torch.mm(X_training, weights) + bias
             probs = torch.softmax(logits, dim=1)
             loss = ((probs - targets_training) ** 2).mean()
@@ -55,8 +56,8 @@ class Model(TrashModel):
                     raise RuntimeError("Gradients missing after backward()")
                 w_grad = weights.grad
                 b_grad = bias.grad
-                weights -= w_grad * LEARNING_RATE
-                bias -= b_grad * LEARNING_RATE
+                weights -= w_grad * self.LEARNING_RATE
+                bias -= b_grad * self.LEARNING_RATE
                 w_grad.zero_()
                 b_grad.zero_()
 
@@ -71,7 +72,7 @@ class Model(TrashModel):
                 )
 
             # Only consider it an improvement if it drops by more than MIN_DELTA
-            if validation_loss < (best_validation_loss - MIN_DELTA):
+            if validation_loss < (best_validation_loss - self.MIN_DELTA):
                 best_validation_loss = validation_loss
                 epochs_without_improvement = 0
             else:
@@ -92,9 +93,9 @@ class Model(TrashModel):
                     f"  Epoch {epoch:5d} | Training Loss: {loss.item():.6f} | Validation Loss: {validation_loss:.6f} | Training Acc: {training_acc.item() * 100:.1f}% | Validation Acc: {validation_acc.item() * 100:.1f}%"
                 )
 
-            if epochs_without_improvement >= PATIENCE:
+            if epochs_without_improvement >= self.PATIENCE:
                 print(
-                    f"\n[Terminated] No significant improvement after {PATIENCE} epochs."
+                    f"\n[Terminated] No significant improvement after {self.PATIENCE} epochs."
                 )
                 print(
                     f"Final Epoch: {epoch} | Best Validation Loss: {best_validation_loss:.6f}"

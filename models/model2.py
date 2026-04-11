@@ -13,19 +13,20 @@ from dataset import CLASSES, load_trashnet
 from model_base import TrashModel
 from transforms import resize_med
 
-LEARNING_RATE = 0.01
-MAX_ITERATIONS = 10000
-PATIENCE = 500
-MIN_DELTA = 1e-6
-
 
 class Model(TrashModel):
+    LEARNING_RATE = 0.01
+    MAX_ITERATIONS = 10000
+    PATIENCE = 500
+    MIN_DELTA = 1e-6
+    transform = resize_med
+
     @property
     def weights_path(self) -> Path:
         return Path("weights") / (Path(__file__).stem + ".pt")
 
     def preprocess(self, img: Image.Image) -> torch.Tensor:
-        return cast(torch.Tensor, resize_med(img)).view(-1)
+        return cast(torch.Tensor, self.transform(img)).view(-1)
 
     def train(self) -> None:
         X, Y = load_trashnet(self.preprocess)
@@ -41,9 +42,9 @@ class Model(TrashModel):
         best_loss = float("inf")
         epochs_without_improvement = 0
 
-        print(f"Starting deep training (Max: {MAX_ITERATIONS})...")
+        print(f"Starting deep training (Max: {self.MAX_ITERATIONS})...")
 
-        for epoch in range(MAX_ITERATIONS):
+        for epoch in range(self.MAX_ITERATIONS):
             logits = torch.mm(X, weights) + bias
             probs = torch.softmax(logits, dim=1)
             loss = ((probs - targets) ** 2).mean()
@@ -54,8 +55,8 @@ class Model(TrashModel):
                     raise RuntimeError("Gradients missing after backward()")
                 w_grad = weights.grad
                 b_grad = bias.grad
-                weights -= w_grad * LEARNING_RATE
-                bias -= b_grad * LEARNING_RATE
+                weights -= w_grad * self.LEARNING_RATE
+                bias -= b_grad * self.LEARNING_RATE
                 w_grad.zero_()
                 b_grad.zero_()
 
@@ -63,7 +64,7 @@ class Model(TrashModel):
             current_loss = loss.item()
 
             # Only consider it an improvement if it drops by more than MIN_DELTA
-            if current_loss < (best_loss - MIN_DELTA):
+            if current_loss < (best_loss - self.MIN_DELTA):
                 best_loss = current_loss
                 epochs_without_improvement = 0
             else:
@@ -77,9 +78,9 @@ class Model(TrashModel):
                     f"  Epoch {epoch:5d} | Loss: {current_loss:.6f} | Acc: {acc.item() * 100:.1f}%"
                 )
 
-            if epochs_without_improvement >= PATIENCE:
+            if epochs_without_improvement >= self.PATIENCE:
                 print(
-                    f"\n[Terminated] No significant improvement after {PATIENCE} epochs."
+                    f"\n[Terminated] No significant improvement after {self.PATIENCE} epochs."
                 )
                 print(f"Final Epoch: {epoch} | Best Loss: {best_loss:.6f}")
                 break

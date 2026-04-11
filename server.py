@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from PIL import Image
 
 from dataset import CLASSES, DATASET_PATH
+import transforms as _transforms
 
 MODELS_DIR = Path("models")
 sys.path.insert(0, str(MODELS_DIR))
@@ -41,6 +42,33 @@ def index():
 def list_models():
     models = sorted(p.stem for p in MODELS_DIR.glob("model*.py"))
     return {"models": models}
+
+
+def _resolve_transform_name(model) -> str | None:
+    transform = getattr(type(model), 'transform', None)
+    if transform is None:
+        return None
+    for name, obj in vars(_transforms).items():
+        if obj is transform:
+            return name
+    return None
+
+
+@app.get("/api/models/{name}/params")
+def model_params(name: str):
+    if not name.startswith("model"):
+        raise HTTPException(status_code=400, detail="Invalid model name")
+    model = _get_model(name)
+    cls = type(model)
+    params = {
+        k: v
+        for k, v in vars(cls).items()
+        if k.isupper() and not callable(v) and not isinstance(v, (classmethod, staticmethod))
+    }
+    transform_name = _resolve_transform_name(model)
+    if transform_name:
+        params["TRANSFORM"] = transform_name
+    return {"params": params}
 
 
 @app.get("/api/random-images")

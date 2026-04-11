@@ -15,20 +15,21 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-LEARNING_RATE = 0.01
-MAX_ITERATIONS = 20000
-PATIENCE = 500
-MIN_DELTA = 1e-6
-HIDDEN_SIZE = 32
-
 
 class Model(TrashModel):
+    LEARNING_RATE = 0.01
+    MAX_ITERATIONS = 20000
+    PATIENCE = 500
+    MIN_DELTA = 1e-6
+    HIDDEN_SIZE = 32
+    transform = resize_small_colour
+
     @property
     def weights_path(self) -> Path:
         return Path("weights") / (Path(__file__).stem + ".pt")
 
     def preprocess(self, img: Image.Image) -> torch.Tensor:
-        return cast(torch.Tensor, resize_small_colour(img)).view(-1)
+        return cast(torch.Tensor, self.transform(img)).view(-1)
 
     def _load(self):
         state = torch.load(self.weights_path, weights_only=True)
@@ -69,12 +70,12 @@ class Model(TrashModel):
         targets_training.scatter_(1, Y_training.unsqueeze(1), 1.0)
 
         # Layer 1: input -> hidden
-        weights1 = torch.randn((input_size, HIDDEN_SIZE)) * 0.01
+        weights1 = torch.randn((input_size, self.HIDDEN_SIZE)) * 0.01
         weights1.requires_grad_(True)
-        bias1 = torch.zeros(HIDDEN_SIZE, requires_grad=True)
+        bias1 = torch.zeros(self.HIDDEN_SIZE, requires_grad=True)
 
         # Layer 2: hidden -> output
-        weights2 = torch.randn((HIDDEN_SIZE, len(CLASSES))) * 0.01
+        weights2 = torch.randn((self.HIDDEN_SIZE, len(CLASSES))) * 0.01
         weights2.requires_grad_(True)
         bias2 = torch.zeros(len(CLASSES), requires_grad=True)
 
@@ -82,10 +83,10 @@ class Model(TrashModel):
         epochs_without_improvement = 0
 
         print(
-            f"Starting deep training (Max: {MAX_ITERATIONS}, Hidden: {HIDDEN_SIZE})..."
+            f"Starting deep training (Max: {self.MAX_ITERATIONS}, Hidden: {self.HIDDEN_SIZE})..."
         )
 
-        for epoch in range(MAX_ITERATIONS):
+        for epoch in range(self.MAX_ITERATIONS):
             hidden = torch.relu(torch.mm(X_training, weights1) + bias1)
             logits = torch.mm(hidden, weights2) + bias2
             probs = torch.softmax(logits, dim=1)
@@ -104,13 +105,13 @@ class Model(TrashModel):
                 b1_grad = bias1.grad
                 w2_grad = weights2.grad
                 b2_grad = bias2.grad
-                weights1 -= w1_grad * LEARNING_RATE
+                weights1 -= w1_grad * self.LEARNING_RATE
                 w1_grad.zero_()
-                bias1 -= b1_grad * LEARNING_RATE
+                bias1 -= b1_grad * self.LEARNING_RATE
                 b1_grad.zero_()
-                weights2 -= w2_grad * LEARNING_RATE
+                weights2 -= w2_grad * self.LEARNING_RATE
                 w2_grad.zero_()
-                bias2 -= b2_grad * LEARNING_RATE
+                bias2 -= b2_grad * self.LEARNING_RATE
                 b2_grad.zero_()
 
             # --- EARLY STOPPING LOGIC (validation loss) ---
@@ -125,7 +126,7 @@ class Model(TrashModel):
                 )
 
             # Only consider it an improvement if it drops by more than MIN_DELTA
-            if validation_loss < (best_validation_loss - MIN_DELTA):
+            if validation_loss < (best_validation_loss - self.MIN_DELTA):
                 best_validation_loss = validation_loss
                 epochs_without_improvement = 0
             else:
@@ -146,9 +147,9 @@ class Model(TrashModel):
                     f"  Epoch {epoch:5d} | Training Loss: {loss.item():.6f} | Validation Loss: {validation_loss:.6f} | Training Acc: {training_acc.item() * 100:.1f}% | Validation Acc: {validation_acc.item() * 100:.1f}%"
                 )
 
-            if epochs_without_improvement >= PATIENCE:
+            if epochs_without_improvement >= self.PATIENCE:
                 print(
-                    f"\n[Terminated] No significant improvement after {PATIENCE} epochs."
+                    f"\n[Terminated] No significant improvement after {self.PATIENCE} epochs."
                 )
                 print(
                     f"Final Epoch: {epoch} | Best Validation Loss: {best_validation_loss:.6f}"
