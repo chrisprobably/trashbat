@@ -52,10 +52,3 @@ uv run uvicorn server:app --reload
 # Add a dependency
 uv add <package>
 ```
-
-## Models
-
-| Model | Loss | Notes |
-|-------|------|-------|
-| model1 | Cross-entropy | Logistic regression baseline |
-| model2 | MSE on one-hot targets | For comparison with model1 |
