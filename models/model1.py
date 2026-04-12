@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import cast
 from PIL import Image
 
-from dataset import CLASSES, load_trashnet
-from model_base import TrashModel
-from transforms import resize_med
+from data.dataset import CLASSES, load_trashnet
+from lib.model_base import TrashModel
+from lib.transforms import resize_med
 
 
 class Model(TrashModel):

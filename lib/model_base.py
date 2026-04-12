@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 from PIL import Image
 
-from dataset import CLASSES
+from data.dataset import CLASSES
 
 
 class TrashModel(ABC):

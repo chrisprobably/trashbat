@@ -1,6 +1,4 @@
-import importlib
 import random
-import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -9,13 +7,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from PIL import Image
 
-from dataset import CLASSES, DATASET_PATH
-import transforms as _transforms
+from data.dataset import CLASSES, DATASET_PATH
+from lib import transforms as _transforms
+from lib.model_base import TrashModel
+from lib.model_loader import import_model_module
 
 MODELS_DIR = Path("models")
-sys.path.insert(0, str(MODELS_DIR))
-
-from model_base import TrashModel
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -26,9 +23,10 @@ _models: dict[str, TrashModel] = {}
 
 def _get_model(name: str) -> TrashModel:
     if name not in _models:
-        if not (MODELS_DIR / f"{name}.py").exists():
+        path = MODELS_DIR / f"{name}.py"
+        if not path.exists():
             raise HTTPException(status_code=404, detail="Model not found")
-        mod = importlib.import_module(name)
+        mod = import_model_module(path)
         _models[name] = mod.Model()
     return _models[name]
 
@@ -40,7 +38,11 @@ def index():
 
 @app.get("/api/models")
 def list_models():
-    models = sorted(p.stem for p in MODELS_DIR.glob("model*.py"))
+    models = sorted(
+        p.relative_to(MODELS_DIR).with_suffix("").as_posix()
+        for p in MODELS_DIR.rglob("*.py")
+        if p.name != "__init__.py"
+    )
     return {"models": models}
 
 
@@ -54,9 +56,9 @@ def _resolve_transform_name(model) -> str | None:
     return None
 
 
-@app.get("/api/models/{name}/params")
+@app.get("/api/models/{name:path}/params")
 def model_params(name: str):
-    if not name.startswith("model"):
+    if ".." in name:
         raise HTTPException(status_code=400, detail="Invalid model name")
     model = _get_model(name)
     cls = type(model)
@@ -98,7 +100,7 @@ class PredictRequest(BaseModel):
 
 @app.post("/api/predict")
 def predict(req: PredictRequest):
-    if not req.model.startswith("model"):
+    if ".." in req.model:
         raise HTTPException(status_code=400, detail="Invalid model name")
 
     parts = req.image.split("/")

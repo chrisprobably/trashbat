@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import cast
 from PIL import Image
 
-from dataset import CLASSES, load_stratified_data
-from model_base import TrashModel
-from transforms import MEDIUM_IMG_SIZE, resize_med_colour
+from data.dataset import CLASSES, load_stratified_data
+from lib.model_base import TrashModel
+from lib.transforms import MEDIUM_IMG_SIZE, resize_med_colour
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt

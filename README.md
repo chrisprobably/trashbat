@@ -15,10 +15,10 @@ uv sync
 **Unzip the dataset**
 
 ```bash
-unzip dataset-resized.zip
+unzip data/dataset-resized.zip -d data/
 ```
 
-This produces a `dataset-resized/` folder containing one subfolder per class (`cardboard`, `glass`, `metal`, `paper`, `plastic`, `trash`).
+This produces a `data/dataset-resized/` folder containing one subfolder per class (`cardboard`, `glass`, `metal`, `paper`, `plastic`, `trash`).
 
 **Train all models**
 

@@ -6,7 +6,7 @@ from PIL import Image
 from typing import Callable
 
 CLASSES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
-DATASET_PATH = Path("./dataset-resized")
+DATASET_PATH = Path("./data/dataset-resized")
 
 
 def load_trashnet(
@@ -99,4 +99,3 @@ def load_stratified_data(
         (torch.stack(validation_X), torch.tensor(validation_Y)),
         (torch.stack(test_X), torch.tensor(test_Y)),
     )
-
