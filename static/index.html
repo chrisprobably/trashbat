@@ -13,7 +13,16 @@
     <label for="model-select">Model:</label>
     <select id="model-select"></select>
     <button id="shuffle-btn">Shuffle images</button>
+    <button id="confusion-btn">View confusion matrix</button>
     <button id="categorize-btn" class="primary" disabled>Categorize</button>
+  </div>
+
+  <div class="modal" id="confusion-modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-content">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <img id="confusion-img" alt="Confusion matrix">
+    </div>
   </div>
 
   <div class="params" id="model-params"></div>
@@ -147,6 +156,37 @@
         categorizeBtn.disabled = false;
       }
     }
+
+    const confusionBtn   = document.getElementById('confusion-btn');
+    const confusionModal = document.getElementById('confusion-modal');
+    const confusionImg   = document.getElementById('confusion-img');
+
+    async function showConfusionMatrix() {
+      const model = modelSelect.value;
+      if (!model) return;
+      const res = await fetch(`/api/models/${model}/confusion`);
+      if (!res.ok) {
+        statusEl.textContent = 'No confusion matrix available. Retrain the model.';
+        return;
+      }
+      const blob = await res.blob();
+      confusionImg.src = URL.createObjectURL(blob);
+      confusionModal.hidden = false;
+    }
+
+    function closeConfusionModal() {
+      confusionModal.hidden = true;
+      if (confusionImg.src) URL.revokeObjectURL(confusionImg.src);
+      confusionImg.src = '';
+    }
+
+    confusionBtn.addEventListener('click', showConfusionMatrix);
+    confusionModal.addEventListener('click', (e) => {
+      if (e.target.hasAttribute('data-close')) closeConfusionModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !confusionModal.hidden) closeConfusionModal();
+    });
 
     modelSelect.addEventListener('change', () => loadModelParams(modelSelect.value));
     shuffleBtn.addEventListener('click', loadImages);

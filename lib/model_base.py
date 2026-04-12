@@ -6,6 +6,9 @@ from pathlib import Path
 
 import torch
 from PIL import Image
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from data.dataset import CLASSES
 
@@ -18,6 +21,15 @@ class TrashModel(ABC):
 
     @abstractmethod
     def preprocess(self, img: Image.Image) -> torch.Tensor: ...
+
+    @abstractmethod
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """Compute logits from a batch of pre-processed feature vectors.
+
+        Uses ``self._weights`` / ``self._biases`` which must already be populated
+        (either loaded from disk or via ``_save`` during training).
+        """
+        ...
 
     def __init__(self):
         self._weights: list[torch.Tensor] = []
@@ -60,6 +72,36 @@ class TrashModel(ABC):
         """Train on the full dataset and save weights to disk."""
         ...
 
+    @property
+    def confusion_matrix_path(self) -> Path:
+        return self.weights_path.with_suffix(".confusion.png")
+
+    def _plot_confusion_matrix(self, X: torch.Tensor, Y: torch.Tensor) -> None:
+        with torch.no_grad():
+            logits = self.forward(X)
+            predictions = torch.argmax(logits, dim=1)
+
+        cm = confusion_matrix(Y.numpy(), predictions.numpy())
+
+        fig = plt.figure(figsize=(10, 7))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=CLASSES,
+            yticklabels=CLASSES,
+        )
+        plt.xlabel("Predicted Label")
+        plt.ylabel("True Label")
+        plt.title("Waste Classification Confusion Matrix")
+        self.confusion_matrix_path.parent.mkdir(exist_ok=True)
+        fig.savefig(self.confusion_matrix_path, bbox_inches="tight")
+        plt.close(fig)
+        print(
+            f"{self.weights_path.stem}: confusion matrix saved to {self.confusion_matrix_path}"
+        )
+
     def predict(self, img: Image.Image) -> dict:
         """
         Run inference on a PIL image.
@@ -78,9 +120,7 @@ class TrashModel(ABC):
             )
         x = self.preprocess(img).unsqueeze(0)
         with torch.no_grad():
-            probs = torch.softmax(
-                torch.mm(x, self._weights[0]) + self._biases[0], dim=1
-            ).squeeze()
+            probs = torch.softmax(self.forward(x), dim=1).squeeze()
         idx = int(torch.argmax(probs).item())
         return {
             "prediction": CLASSES[idx],

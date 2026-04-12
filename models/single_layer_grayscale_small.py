@@ -27,6 +27,9 @@ class Model(TrashModel):
     def preprocess(self, img: Image.Image) -> torch.Tensor:
         return cast(torch.Tensor, self.transform(img)).view(-1)
 
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        return torch.mm(X, self._weights[0]) + self._biases[0]
+
     def train(self) -> None:
         (X_training, Y_training), (X_validation, Y_validation), (X_test, Y_test) = (
             load_stratified_data(self.preprocess)
@@ -108,3 +111,4 @@ class Model(TrashModel):
         print(f"Test Acc: {test_acc.item() * 100:.1f}%")
         self._save_meta("test_accuracy", f"{test_acc.item() * 100:.1f}%")
         self._save([weights.detach()], [bias.detach()])
+        self._plot_confusion_matrix(X_validation, Y_validation)

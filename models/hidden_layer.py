@@ -11,9 +11,6 @@ from PIL import Image
 from data.dataset import CLASSES, load_stratified_data
 from lib.model_base import TrashModel
 from lib.transforms import resize_small_colour
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 
 class Model(TrashModel):
@@ -31,25 +28,9 @@ class Model(TrashModel):
     def preprocess(self, img: Image.Image) -> torch.Tensor:
         return cast(torch.Tensor, self.transform(img)).view(-1)
 
-    def predict(self, img: Image.Image) -> dict:
-        if len(self._weights) < 2 or len(self._biases) < 2:
-            raise RuntimeError(
-                f"{self.weights_path.stem} has not been trained. "
-                f"Run: python train.py {self.weights_path.stem}"
-            )
-        x = self.preprocess(img).unsqueeze(0)
-        with torch.no_grad():
-            hidden = torch.relu(torch.mm(x, self._weights[0]) + self._biases[0])
-            probs = torch.softmax(
-                torch.mm(hidden, self._weights[1]) + self._biases[1], dim=1
-            ).squeeze()
-        idx = int(torch.argmax(probs).item())
-        return {
-            "prediction": CLASSES[idx],
-            "probabilities": {
-                cls: round(probs[i].item(), 4) for i, cls in enumerate(CLASSES)
-            },
-        }
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        hidden = torch.relu(torch.mm(X, self._weights[0]) + self._biases[0])
+        return torch.mm(hidden, self._weights[1]) + self._biases[1]
 
     def train(self) -> None:
         (X_training, Y_training), (X_validation, Y_validation), (X_test, Y_test) = (
@@ -156,32 +137,8 @@ class Model(TrashModel):
         print(f"Test Acc: {test_acc.item() * 100:.1f}%")
         self._save_meta("test_accuracy", f"{test_acc.item() * 100:.1f}%")
 
-        # --- GENERATE CONFUSION MATRIX ---
-        with torch.no_grad():
-            h1 = torch.relu(torch.mm(X_validation, weights1) + bias1)
-            logits = torch.mm(h1, weights2) + bias2
-            predictions = torch.argmax(logits, dim=1)
-
-        y_true = Y_validation.numpy()
-        y_pred = predictions.numpy()
-
-        cm = confusion_matrix(y_true, y_pred)
-
-        plt.figure(figsize=(10, 7))
-        sns.heatmap(
-            cm,
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            xticklabels=CLASSES,
-            yticklabels=CLASSES,
-        )
-        plt.xlabel("Predicted Label")
-        plt.ylabel("True Label")
-        plt.title("Waste Classification Confusion Matrix")
-        plt.show()
-
         self._save(
             [weights1.detach(), weights2.detach()],
             [bias1.detach(), bias2.detach()],
         )
+        self._plot_confusion_matrix(X_validation, Y_validation)

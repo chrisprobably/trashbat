@@ -1,4 +1,10 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   font-family: system-ui, sans-serif;
@@ -12,7 +18,11 @@ body {
   gap: 2rem;
 }
 
-h1 { font-size: 1.8rem; letter-spacing: 0.05em; color: #fff; }
+h1 {
+  font-size: 1.8rem;
+  letter-spacing: 0.05em;
+  color: #fff;
+}
 
 .controls {
   display: flex;
@@ -22,7 +32,8 @@ h1 { font-size: 1.8rem; letter-spacing: 0.05em; color: #fff; }
   justify-content: center;
 }
 
-select, button {
+select,
+button {
   padding: 0.5rem 1rem;
   border-radius: 6px;
   border: 1px solid #333;
@@ -41,7 +52,9 @@ button {
   transition: background 0.15s;
 }
 
-button:hover { background: #3a3a3a; }
+button:hover {
+  background: #3a3a3a;
+}
 
 button.primary {
   background: #3b82f6;
@@ -50,9 +63,14 @@ button.primary {
   font-weight: 600;
 }
 
-button.primary:hover { background: #2563eb; }
+button.primary:hover {
+  background: #2563eb;
+}
 
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .grid {
   display: grid;
@@ -65,12 +83,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.15s, transform 0.1s;
+  transition:
+    border-color 0.15s,
+    transform 0.1s;
   background: #1a1a1a;
 }
 
-.card:hover { border-color: #555; transform: scale(1.02); }
-.card.selected { border-color: #3b82f6; }
+.card:hover {
+  border-color: #555;
+  transform: scale(1.02);
+}
+.card.selected {
+  border-color: #3b82f6;
+}
 
 .card img {
   width: 100%;
@@ -102,8 +127,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-bottom: 0.25rem;
 }
 
-.result-heading .correct { color: #22c55e; }
-.result-heading .wrong   { color: #ef4444; }
+.result-heading .correct {
+  color: #22c55e;
+}
+.result-heading .wrong {
+  color: #ef4444;
+}
 
 .bar-row {
   display: grid;
@@ -119,7 +148,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #aaa;
 }
 
-.bar-row.predicted .cls-name { color: #fff; font-weight: 600; }
+.bar-row.predicted .cls-name {
+  color: #fff;
+  font-weight: 600;
+}
 
 .bar-track {
   background: #2a2a2a;
@@ -135,13 +167,26 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   transition: width 0.3s ease;
 }
 
-.bar-row.predicted .bar-fill { background: #22c55e; }
-.bar-row.wrong-pred .bar-fill { background: #ef4444; }
+.bar-row.predicted .bar-fill {
+  background: #22c55e;
+}
+.bar-row.wrong-pred .bar-fill {
+  background: #ef4444;
+}
 
-.bar-pct { color: #aaa; font-size: 0.8rem; }
-.bar-row.predicted .bar-pct { color: #fff; }
+.bar-pct {
+  color: #aaa;
+  font-size: 0.8rem;
+}
+.bar-row.predicted .bar-pct {
+  color: #fff;
+}
 
-.status { font-size: 0.85rem; color: #888; min-height: 1.2rem; }
+.status {
+  font-size: 0.85rem;
+  color: #888;
+  min-height: 1.2rem;
+}
 
 .params {
   display: flex;
@@ -153,6 +198,73 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   min-height: 1.2rem;
 }
 
-.param-item { white-space: nowrap; }
-.param-item .param-name { color: #666; }
-.param-item .param-value { color: #aaa; font-variant-numeric: tabular-nums; }
+.param-item {
+  white-space: nowrap;
+}
+.param-item .param-name {
+  color: #666;
+}
+.param-item .param-value {
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.modal-content {
+  position: relative;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 1.5rem;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.modal-content img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(90vh - 3rem);
+  height: auto;
+}
+
+.modal-close {
+  position: absolute;
+  top: -0.6rem;
+  right: -0.6rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  line-height: 1;
+  border: none;
+  color: #aaa;
+}
+
+.modal-close:hover {
+  color: #fff;
+}

@@ -74,6 +74,17 @@ def model_params(name: str):
     return {"params": params}
 
 
+@app.get("/api/models/{name:path}/confusion")
+def model_confusion(name: str):
+    if ".." in name:
+        raise HTTPException(status_code=400, detail="Invalid model name")
+    model = _get_model(name)
+    path = model.confusion_matrix_path
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Confusion matrix not available")
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/api/random-images")
 def random_images():
     images = {}
