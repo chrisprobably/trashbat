@@ -10,6 +10,7 @@ from PIL import Image
 
 from data.dataset import CLASSES, load_stratified_data
 from lib.model_base import TrashModel
+from lib.criteria import mean_squared_error
 from lib.transforms import resize_med
 
 
@@ -19,6 +20,7 @@ class Model(TrashModel):
     PATIENCE = 500
     MIN_DELTA = 1e-6
     transform = resize_med
+    criterion = staticmethod(mean_squared_error)
 
     @property
     def weights_path(self) -> Path:
@@ -51,7 +53,7 @@ class Model(TrashModel):
         for epoch in range(self.MAX_ITERATIONS):
             logits = torch.mm(X_training, weights) + bias
             probs = torch.softmax(logits, dim=1)
-            loss = ((probs - targets_training) ** 2).mean()
+            loss = type(self).criterion(probs, targets_training)
             loss.backward()
 
             with torch.no_grad():
@@ -70,9 +72,9 @@ class Model(TrashModel):
                 validation_probs = torch.softmax(validation_logits, dim=1)
                 targets_validation = torch.zeros(len(Y_validation), len(CLASSES))
                 targets_validation.scatter_(1, Y_validation.unsqueeze(1), 1.0)
-                validation_loss = (
-                    ((validation_probs - targets_validation) ** 2).mean().item()
-                )
+                validation_loss = type(self).criterion(
+                    validation_probs, targets_validation
+                ).item()
 
             # Only consider it an improvement if it drops by more than MIN_DELTA
             if validation_loss < (best_validation_loss - self.MIN_DELTA):

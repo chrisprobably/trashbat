@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from PIL import Image
 
 from data.dataset import CLASSES, DATASET_PATH
+from lib import criteria as _criteria
 from lib import transforms as _transforms
 from lib.model_base import TrashModel
 from lib.model_loader import import_model_module
@@ -56,6 +57,16 @@ def _resolve_transform_name(model) -> str | None:
     return None
 
 
+def _resolve_criterion_name(model) -> str | None:
+    criterion = getattr(type(model), 'criterion', None)
+    if criterion is None:
+        return None
+    for name, obj in vars(_criteria).items():
+        if obj is criterion:
+            return name
+    return None
+
+
 @app.get("/api/models/{name:path}/params")
 def model_params(name: str):
     if ".." in name:
@@ -70,6 +81,9 @@ def model_params(name: str):
     transform_name = _resolve_transform_name(model)
     if transform_name:
         params["TRANSFORM"] = transform_name
+    criterion_name = _resolve_criterion_name(model)
+    if criterion_name:
+        params["CRITERION"] = criterion_name
     params.update(model._load_meta())
     return {"params": params}
 
