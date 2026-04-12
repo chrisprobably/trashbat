@@ -202,6 +202,7 @@ class Model(TrashModel):
             test_logits = torch.mm(test_hidden2, weights3) + bias3
             test_acc = (torch.argmax(test_logits, dim=1) == Y_test).float().mean()
         print(f"Test Acc: {test_acc.item() * 100:.1f}%")
+        self._save_meta("test_accuracy", f"{test_acc.item() * 100:.1f}%")
 
         # --- GENERATE CONFUSION MATRIX ---
         with torch.no_grad():

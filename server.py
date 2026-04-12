@@ -70,6 +70,7 @@ def model_params(name: str):
     transform_name = _resolve_transform_name(model)
     if transform_name:
         params["TRANSFORM"] = transform_name
+    params.update(model._load_meta())
     return {"params": params}
 
 

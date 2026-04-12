@@ -1,5 +1,6 @@
 """Abstract base class that all trash-classification models must implement."""
 
+import json
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -34,6 +35,23 @@ class TrashModel(ABC):
         torch.save({"weights": weights, "bias": bias}, self.weights_path)
         print(f"{self.weights_path.stem}: weights saved to {self.weights_path}")
         self._load()
+
+    @property
+    def meta_path(self) -> Path:
+        return self.weights_path.with_suffix(".meta.json")
+
+    def _save_meta(self, key: str, value: str | float | int) -> None:
+        self.weights_path.parent.mkdir(exist_ok=True)
+        meta = self._load_meta()
+        meta[key] = value
+        with self.meta_path.open("w") as f:
+            json.dump(meta, f)
+
+    def _load_meta(self) -> dict:
+        if not self.meta_path.exists():
+            return {}
+        with self.meta_path.open() as f:
+            return json.load(f)
 
     @abstractmethod
     def train(self) -> None:
