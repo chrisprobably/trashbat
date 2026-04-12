@@ -26,13 +26,6 @@ class Model(TrashModel):
     HIDDEN_LAYER_1_SIZE = INPUT_SIZE // 16
     HIDDEN_LAYER_2_SIZE = HIDDEN_LAYER_1_SIZE // 2
 
-    def __init__(self):
-        self._weights1: torch.Tensor | None = None
-        self._bias1: torch.Tensor | None = None
-        self._weights2: torch.Tensor | None = None
-        self._bias2: torch.Tensor | None = None
-        super().__init__()
-
     @property
     def weights_path(self) -> Path:
         return Path("weights") / (Path(__file__).stem + ".pt")
@@ -40,34 +33,20 @@ class Model(TrashModel):
     def preprocess(self, img: Image.Image) -> torch.Tensor:
         return cast(torch.Tensor, self.transform(img)).view(-1)
 
-    def _load(self):
-        state = torch.load(self.weights_path, weights_only=True)
-        self._weights = state["weights3"]
-        self._bias = state["bias3"]
-        self._weights1 = state["weights1"]
-        self._bias1 = state["bias1"]
-        self._weights2 = state["weights2"]
-        self._bias2 = state["bias2"]
-
     def predict(self, img: Image.Image) -> dict:
-        if (
-            self._weights is None
-            or self._bias is None
-            or self._weights1 is None
-            or self._bias1 is None
-            or self._weights2 is None
-            or self._bias2 is None
-        ):
+        if len(self._weights) < 3 or len(self._biases) < 3:
             raise RuntimeError(
                 f"{self.weights_path.stem} has not been trained. "
                 f"Run: python train.py {self.weights_path.stem}"
             )
         x = self.preprocess(img).unsqueeze(0)
         with torch.no_grad():
-            hidden1 = torch.relu(torch.mm(x, self._weights1) + self._bias1)
-            hidden2 = torch.relu(torch.mm(hidden1, self._weights2) + self._bias2)
+            hidden1 = torch.relu(torch.mm(x, self._weights[0]) + self._biases[0])
+            hidden2 = torch.relu(
+                torch.mm(hidden1, self._weights[1]) + self._biases[1]
+            )
             probs = torch.softmax(
-                torch.mm(hidden2, self._weights) + self._bias, dim=1
+                torch.mm(hidden2, self._weights[2]) + self._biases[2], dim=1
             ).squeeze()
         idx = int(torch.argmax(probs).item())
         return {
@@ -230,17 +209,7 @@ class Model(TrashModel):
         plt.title("Waste Classification Confusion Matrix")
         plt.show()
 
-        self.weights_path.parent.mkdir(exist_ok=True)
-        torch.save(
-            {
-                "weights1": weights1.detach(),
-                "bias1": bias1.detach(),
-                "weights2": weights2.detach(),
-                "bias2": bias2.detach(),
-                "weights3": weights3.detach(),
-                "bias3": bias3.detach(),
-            },
-            self.weights_path,
+        self._save(
+            [weights1.detach(), weights2.detach(), weights3.detach()],
+            [bias1.detach(), bias2.detach(), bias3.detach()],
         )
-        print(f"{self.weights_path.stem}: weights saved to {self.weights_path}")
-        self._load()

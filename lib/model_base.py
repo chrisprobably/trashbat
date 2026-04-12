@@ -20,19 +20,21 @@ class TrashModel(ABC):
     def preprocess(self, img: Image.Image) -> torch.Tensor: ...
 
     def __init__(self):
-        self._weights: torch.Tensor | None = None
-        self._bias: torch.Tensor | None = None
+        self._weights: list[torch.Tensor] = []
+        self._biases: list[torch.Tensor] = []
         if self.weights_path.exists():
             self._load()
 
     def _load(self):
         state = torch.load(self.weights_path, weights_only=True)
-        self._weights = state["weights"]
-        self._bias = state["bias"]
+        self._weights = list(state["weights"])
+        self._biases = list(state["biases"])
 
-    def _save(self, weights: torch.Tensor, bias: torch.Tensor) -> None:
+    def _save(
+        self, weights: list[torch.Tensor], biases: list[torch.Tensor]
+    ) -> None:
         self.weights_path.parent.mkdir(exist_ok=True)
-        torch.save({"weights": weights, "bias": bias}, self.weights_path)
+        torch.save({"weights": weights, "biases": biases}, self.weights_path)
         print(f"{self.weights_path.stem}: weights saved to {self.weights_path}")
         self._load()
 
@@ -69,7 +71,7 @@ class TrashModel(ABC):
             }
         Raises RuntimeError if the model has not been trained yet.
         """
-        if self._weights is None or self._bias is None:
+        if not self._weights or not self._biases:
             raise RuntimeError(
                 f"{self.weights_path.stem} has not been trained. "
                 f"Run: python train.py {self.weights_path.stem}"
@@ -77,7 +79,7 @@ class TrashModel(ABC):
         x = self.preprocess(img).unsqueeze(0)
         with torch.no_grad():
             probs = torch.softmax(
-                torch.mm(x, self._weights) + self._bias, dim=1
+                torch.mm(x, self._weights[0]) + self._biases[0], dim=1
             ).squeeze()
         idx = int(torch.argmax(probs).item())
         return {

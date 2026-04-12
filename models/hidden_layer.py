@@ -31,24 +31,17 @@ class Model(TrashModel):
     def preprocess(self, img: Image.Image) -> torch.Tensor:
         return cast(torch.Tensor, self.transform(img)).view(-1)
 
-    def _load(self):
-        state = torch.load(self.weights_path, weights_only=True)
-        self._weights = state["weights2"]
-        self._bias = state["bias2"]
-        self._weights1 = state["weights1"]
-        self._bias1 = state["bias1"]
-
     def predict(self, img: Image.Image) -> dict:
-        if self._weights is None or self._bias is None:
+        if len(self._weights) < 2 or len(self._biases) < 2:
             raise RuntimeError(
                 f"{self.weights_path.stem} has not been trained. "
                 f"Run: python train.py {self.weights_path.stem}"
             )
         x = self.preprocess(img).unsqueeze(0)
         with torch.no_grad():
-            hidden = torch.relu(torch.mm(x, self._weights1) + self._bias1)
+            hidden = torch.relu(torch.mm(x, self._weights[0]) + self._biases[0])
             probs = torch.softmax(
-                torch.mm(hidden, self._weights) + self._bias, dim=1
+                torch.mm(hidden, self._weights[1]) + self._biases[1], dim=1
             ).squeeze()
         idx = int(torch.argmax(probs).item())
         return {
@@ -188,15 +181,7 @@ class Model(TrashModel):
         plt.title("Waste Classification Confusion Matrix")
         plt.show()
 
-        self.weights_path.parent.mkdir(exist_ok=True)
-        torch.save(
-            {
-                "weights1": weights1.detach(),
-                "bias1": bias1.detach(),
-                "weights2": weights2.detach(),
-                "bias2": bias2.detach(),
-            },
-            self.weights_path,
+        self._save(
+            [weights1.detach(), weights2.detach()],
+            [bias1.detach(), bias2.detach()],
         )
-        print(f"{self.weights_path.stem}: weights saved to {self.weights_path}")
-        self._load()
