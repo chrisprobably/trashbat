@@ -7,14 +7,14 @@ from PIL import Image
 from data.dataset import CLASSES, load_stratified_data
 from lib.model_base import TrashModel
 from lib.criteria import cross_entropy
-from lib.transforms import resize_small_colour, SMALL_IMG_SIZE
+from lib.transforms import resize_med_colour, MEDIUM_IMG_SIZE
 
 
 PATCH_SIZE = 8
-NUM_PATCHES_PER_SIDE = SMALL_IMG_SIZE // PATCH_SIZE
+NUM_PATCHES_PER_SIDE = MEDIUM_IMG_SIZE // PATCH_SIZE
 NUM_PATCHES = NUM_PATCHES_PER_SIDE * NUM_PATCHES_PER_SIDE
 PATCH_DIM = 3 * PATCH_SIZE * PATCH_SIZE
-EMBED_DIM = 64
+EMBED_DIM = 128
 
 
 class Model(TrashModel):
@@ -22,8 +22,8 @@ class Model(TrashModel):
     MAX_ITERATIONS = 20000
     PATIENCE = 500
     MIN_DELTA = 1e-6
-    HIDDEN_SIZE = 32
-    transform = resize_small_colour
+    HIDDEN_SIZE = 64
+    transform = resize_med_colour
     criterion = staticmethod(cross_entropy)
 
     @property
@@ -96,7 +96,7 @@ class Model(TrashModel):
 
         print(
             f"Starting transformer training (Max: {self.MAX_ITERATIONS}, "
-            f"Patches: {NUM_PATCHES}, Embed: {EMBED_DIM}, Hidden: {self.HIDDEN_SIZE})..."
+            f"Patches: {NUM_PATCHES}, Patch size: {PATCH_SIZE}, Num patches/side: {NUM_PATCHES_PER_SIDE}, Embed: {EMBED_DIM}, Hidden: {self.HIDDEN_SIZE})..."
         )
 
         for epoch in range(self.MAX_ITERATIONS):
@@ -114,9 +114,9 @@ class Model(TrashModel):
 
             with torch.no_grad():
                 validation_logits = run(X_validation)
-                validation_loss = type(self).criterion(
-                    validation_logits, Y_validation
-                ).item()
+                validation_loss = (
+                    type(self).criterion(validation_logits, Y_validation).item()
+                )
 
             if validation_loss < (best_validation_loss - self.MIN_DELTA):
                 best_validation_loss = validation_loss

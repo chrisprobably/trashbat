@@ -81,7 +81,7 @@ resize_med_colour = transforms.Compose(
     [
         transforms.Resize((MEDIUM_IMG_SIZE, MEDIUM_IMG_SIZE)),
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        _colour_normalize,
     ]
 )
 
