@@ -1,8 +1,3 @@
-"""
-Transformer (single self-attention block) followed by a hidden-layer MLP.
-Uses a 70/15/15 training/validation/test split and MSE loss.
-"""
-
 import math
 import torch
 from pathlib import Path

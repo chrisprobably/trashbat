@@ -1,8 +1,3 @@
-"""
-Logistic Regression with MSE Loss
-but uses a 70/15/15 training/validation/test split
-"""
-
 import torch
 from pathlib import Path
 from PIL import Image

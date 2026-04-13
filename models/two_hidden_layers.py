@@ -1,8 +1,3 @@
-"""
-Logistic Regression with MSE Loss and 2 hidden layers (ReLU activation)
-Uses a 70/15/15 training/validation/test split
-"""
-
 import torch
 from pathlib import Path
 from typing import cast
@@ -121,9 +116,9 @@ class Model(TrashModel):
                 validation_probs = torch.softmax(validation_logits, dim=1)
                 targets_validation = torch.zeros(len(Y_validation), len(CLASSES))
                 targets_validation.scatter_(1, Y_validation.unsqueeze(1), 1.0)
-                validation_loss = type(self).criterion(
-                    validation_probs, targets_validation
-                ).item()
+                validation_loss = (
+                    type(self).criterion(validation_probs, targets_validation).item()
+                )
 
             # Only consider it an improvement if it drops by more than MIN_DELTA
             if validation_loss < (best_validation_loss - self.MIN_DELTA):

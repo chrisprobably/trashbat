@@ -1,8 +1,3 @@
-"""
-Logistic Regression with MSE Loss and a hidden layer (ReLU activation)
-Uses a 70/15/15 training/validation/test split
-"""
-
 import torch
 from pathlib import Path
 from typing import cast
