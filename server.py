@@ -99,6 +99,17 @@ def model_confusion(name: str):
     return FileResponse(path, media_type="image/png")
 
 
+@app.get("/api/models/{name:path}/loss")
+def model_loss(name: str):
+    if ".." in name:
+        raise HTTPException(status_code=400, detail="Invalid model name")
+    model = _get_model(name)
+    path = model.loss_plot_path
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Loss plot not available")
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/api/random-images")
 def random_images():
     images = {}

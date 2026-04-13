@@ -14,6 +14,7 @@
     <select id="model-select"></select>
     <button id="shuffle-btn">Shuffle images</button>
     <button id="confusion-btn">View confusion matrix</button>
+    <button id="loss-btn">View loss plot</button>
     <button id="categorize-btn" class="primary" disabled>Categorize</button>
   </div>
 
@@ -22,6 +23,14 @@
     <div class="modal-content">
       <button class="modal-close" data-close aria-label="Close">&times;</button>
       <img id="confusion-img" alt="Confusion matrix">
+    </div>
+  </div>
+
+  <div class="modal" id="loss-modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-content">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <img id="loss-img" alt="Loss plot">
     </div>
   </div>
 
@@ -186,6 +195,37 @@
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !confusionModal.hidden) closeConfusionModal();
+    });
+
+    const lossBtn   = document.getElementById('loss-btn');
+    const lossModal = document.getElementById('loss-modal');
+    const lossImg   = document.getElementById('loss-img');
+
+    async function showLossPlot() {
+      const model = modelSelect.value;
+      if (!model) return;
+      const res = await fetch(`/api/models/${model}/loss`);
+      if (!res.ok) {
+        statusEl.textContent = 'No loss plot available. Retrain the model.';
+        return;
+      }
+      const blob = await res.blob();
+      lossImg.src = URL.createObjectURL(blob);
+      lossModal.hidden = false;
+    }
+
+    function closeLossModal() {
+      lossModal.hidden = true;
+      if (lossImg.src) URL.revokeObjectURL(lossImg.src);
+      lossImg.src = '';
+    }
+
+    lossBtn.addEventListener('click', showLossPlot);
+    lossModal.addEventListener('click', (e) => {
+      if (e.target.hasAttribute('data-close')) closeLossModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !lossModal.hidden) closeLossModal();
     });
 
     modelSelect.addEventListener('change', () => loadModelParams(modelSelect.value));

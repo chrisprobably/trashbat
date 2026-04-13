@@ -12,8 +12,8 @@ from lib.transforms import resize_med_colour, MEDIUM_IMG_SIZE
 
 class Model(TrashModel):
     LEARNING_RATE = 0.01
-    MAX_ITERATIONS = 20000
-    PATIENCE = 500
+    MAX_ITERATIONS = 10000
+    PATIENCE = MAX_ITERATIONS
     MIN_DELTA = 1e-6
     HIDDEN_LAYER_SIZE = 64
     DROPOUT_KEEP_PROB = 0.5
@@ -111,6 +111,7 @@ class Model(TrashModel):
 
         best_validation_loss = float("inf")
         epochs_without_improvement = 0
+        loss_history: list[tuple[int, float, float]] = []
 
         print(
             f"Starting transformer training (Max: {self.MAX_ITERATIONS}, "
@@ -152,6 +153,7 @@ class Model(TrashModel):
                         .float()
                         .mean()
                     )
+                loss_history.append((epoch, loss.item(), validation_loss))
                 print(
                     f"  Epoch {epoch:5d} | Training Loss: {loss.item():.6f} | Validation Loss: {validation_loss:.6f} | Training Acc: {training_acc.item() * 100:.1f}% | Validation Acc: {validation_acc.item() * 100:.1f}%"
                 )
@@ -176,3 +178,4 @@ class Model(TrashModel):
             [bq.detach(), bk.detach(), bv.detach(), b1.detach(), b2.detach()],
         )
         self._plot_confusion_matrix(X_validation, Y_validation)
+        self._plot_loss_history(loss_history)

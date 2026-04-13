@@ -10,8 +10,8 @@ from lib.transforms import resize_small_colour_plus_hist_plus_sharp
 
 class Model(TrashModel):
     LEARNING_RATE = 0.01
-    MAX_ITERATIONS = 10000
-    PATIENCE = 500
+    MAX_ITERATIONS = 20000
+    PATIENCE = MAX_ITERATIONS
     MIN_DELTA = 1e-6
     transform = staticmethod(resize_small_colour_plus_hist_plus_sharp)
     criterion = staticmethod(mean_squared_error)
@@ -41,6 +41,7 @@ class Model(TrashModel):
 
         best_validation_loss = float("inf")
         epochs_without_improvement = 0
+        loss_history: list[tuple[int, float, float]] = []
 
         print(f"Starting deep training (Max: {self.MAX_ITERATIONS})...")
 
@@ -88,6 +89,7 @@ class Model(TrashModel):
                         .float()
                         .mean()
                     )
+                loss_history.append((epoch, loss.item(), validation_loss))
                 print(
                     f"  Epoch {epoch:5d} | Training Loss: {loss.item():.6f} | Validation Loss: {validation_loss:.6f} | Training Acc: {training_acc.item() * 100:.1f}% | Validation Acc: {validation_acc.item() * 100:.1f}%"
                 )
@@ -108,3 +110,4 @@ class Model(TrashModel):
         self._save_meta("test_accuracy", f"{test_acc.item() * 100:.1f}%")
         self._save([weights.detach()], [bias.detach()])
         self._plot_confusion_matrix(X_validation, Y_validation)
+        self._plot_loss_history(loss_history)

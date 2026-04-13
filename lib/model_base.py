@@ -76,6 +76,31 @@ class TrashModel(ABC):
     def confusion_matrix_path(self) -> Path:
         return self.weights_path.with_suffix(".confusion.png")
 
+    @property
+    def loss_plot_path(self) -> Path:
+        return self.weights_path.with_suffix(".loss.png")
+
+    def _plot_loss_history(
+        self, loss_history: list[tuple[int, float, float]]
+    ) -> None:
+        if not loss_history:
+            return
+
+        epochs_logged, train_losses, val_losses = zip(*loss_history)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(epochs_logged, train_losses, label="Training Loss")
+        ax.plot(epochs_logged, val_losses, label="Validation Loss")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.set_title("Training vs Validation Loss")
+        ax.legend()
+        self.loss_plot_path.parent.mkdir(exist_ok=True)
+        fig.savefig(self.loss_plot_path, bbox_inches="tight")
+        plt.close(fig)
+        print(
+            f"{self.weights_path.stem}: loss plot saved to {self.loss_plot_path}"
+        )
+
     def _plot_confusion_matrix(self, X: torch.Tensor, Y: torch.Tensor) -> None:
         with torch.no_grad():
             logits = self.forward(X)

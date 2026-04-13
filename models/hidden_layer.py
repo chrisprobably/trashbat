@@ -12,7 +12,7 @@ from lib.transforms import resize_small_colour
 class Model(TrashModel):
     LEARNING_RATE = 0.01
     MAX_ITERATIONS = 20000
-    PATIENCE = 500
+    PATIENCE = MAX_ITERATIONS
     MIN_DELTA = 1e-6
     HIDDEN_SIZE = 32
     transform = resize_small_colour
@@ -52,6 +52,7 @@ class Model(TrashModel):
 
         best_validation_loss = float("inf")
         epochs_without_improvement = 0
+        loss_history: list[tuple[int, float, float]] = []
 
         print(
             f"Starting deep training (Max: {self.MAX_ITERATIONS}, Hidden: {self.HIDDEN_SIZE})..."
@@ -114,6 +115,7 @@ class Model(TrashModel):
                         .float()
                         .mean()
                     )
+                loss_history.append((epoch, loss.item(), validation_loss))
                 print(
                     f"  Epoch {epoch:5d} | Training Loss: {loss.item():.6f} | Validation Loss: {validation_loss:.6f} | Training Acc: {training_acc.item() * 100:.1f}% | Validation Acc: {validation_acc.item() * 100:.1f}%"
                 )
@@ -139,3 +141,4 @@ class Model(TrashModel):
             [bias1.detach(), bias2.detach()],
         )
         self._plot_confusion_matrix(X_validation, Y_validation)
+        self._plot_loss_history(loss_history)
