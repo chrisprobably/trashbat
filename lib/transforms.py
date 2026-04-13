@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Callable, cast
 
 import torch
 import torchvision.transforms as transforms
@@ -92,6 +92,22 @@ resize_small = transforms.Compose(
         transforms.ToTensor(),
     ]
 )
+
+default_augment = transforms.Compose(
+    [
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(10),
+    ]
+)
+
+
+def augmented(
+    base: Callable[[Image.Image], torch.Tensor],
+    augment: Callable[[Image.Image], Image.Image],
+) -> Callable[[Image.Image], torch.Tensor]:
+    """Compose a PIL-level augmentation in front of a base preprocess."""
+    return lambda img: base(augment(img))
+
 
 # Resize long side to IMG_SIZE preserving aspect ratio, then pad short side
 resize_med_letterbox = transforms.Compose(
