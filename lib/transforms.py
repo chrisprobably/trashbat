@@ -15,6 +15,13 @@ _small_colour_resize = transforms.Compose(
     ]
 )
 
+_med_colour_resize = transforms.Compose(
+    [
+        transforms.Resize((MEDIUM_IMG_SIZE, MEDIUM_IMG_SIZE)),
+        transforms.ToTensor(),
+    ]
+)
+
 _colour_normalize = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
 resize_med = transforms.Compose(
@@ -77,6 +84,25 @@ def resize_small_colour_plus_hist_plus_sharp(img: Image.Image) -> torch.Tensor:
     return torch.cat([normalised, hist, brightness, contrast, sharpness_score])
 
 
+def resize_med_colour_plus_hist_plus_sharp(img: Image.Image) -> torch.Tensor:
+    full = cast(torch.Tensor, transforms.ToTensor()(img.convert("RGB")))
+    hist = torch.cat(
+        [
+            torch.histc(full[c], bins=16, min=0.0, max=1.0) / full[c].numel()
+            for c in range(full.shape[0])
+        ]
+    )
+    brightness = full.mean().unsqueeze(0)
+    contrast = full.std().unsqueeze(0)
+    blurred = torch.nn.functional.avg_pool2d(
+        full.unsqueeze(0), kernel_size=3, stride=1, padding=1
+    ).squeeze(0)
+    sharpness_score = torch.mean(torch.abs(full - blurred)).unsqueeze(0)
+    resized = cast(torch.Tensor, _med_colour_resize(img))
+    normalised = _colour_normalize(resized).view(-1)
+    return torch.cat([normalised, hist, brightness, contrast, sharpness_score])
+
+
 resize_med_colour = transforms.Compose(
     [
         transforms.Resize((MEDIUM_IMG_SIZE, MEDIUM_IMG_SIZE)),
@@ -97,6 +123,22 @@ default_augment = transforms.Compose(
     [
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
+    ]
+)
+
+extended_med_augment = transforms.Compose(
+    [
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),  # Slightly more range
+        transforms.RandomResizedCrop(
+            size=MEDIUM_IMG_SIZE, scale=(0.8, 1.0)
+        ),  # Focus on different parts of the image
+        transforms.ColorJitter(
+            brightness=0.2, contrast=0.2
+        ),  # Handle different lighting/camera settings
+        transforms.RandomAffine(
+            degrees=0, translate=(0.1, 0.1)
+        ),  # Shift the object so it's not always centered
     ]
 )
 
